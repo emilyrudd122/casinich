@@ -1,0 +1,2 @@
+from .main_menu_user_keyboard import main_menu_user_keyboard
+from .nickname_complete_keyboard import nickname_complete_keyboard
