@@ -2,7 +2,7 @@ from aiogram import types
 from aiogram.dispatcher.filters.builtin import CommandStart
 # from aiogram.dispatcher.filters import Command
 from aiogram.dispatcher import FSMContext
-from keyboards.default import main_menu_user_keyboard
+from keyboards.default import main_menu_user_keyboard, cancel_keyboard
 from keyboards.inline import cabinet_keyboard, deposit_choose_keyboard
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from keyboards.inline.callback_datas import cabinet_callback, deposit_callback
@@ -10,7 +10,7 @@ from utils.db_api import db
 from utils import check_payment
 from data import config
 import aiogram.utils.markdown as md
-
+from states.promocode_check import promocode_check
 from loader import dp
 
 clear_keyboard = types.ReplyKeyboardRemove(selective=False)
@@ -84,10 +84,76 @@ async def deposit_handler(call: types.CallbackQuery):
         "Выбери способ для депозита",
         reply_markup=deposit_choose_keyboard,
     )
+
+# DONE: добавить хандлер для промокодов    
+@dp.callback_query_handler(deposit_callback.filter(type="promo"))
+async def promo_deposit_handler(call: types.CallbackQuery):
+    await promocode_check.get_promocode.set()
+    await call.message.answer("Введите промокод:", reply_markup=cancel_keyboard)
+    
+@dp.message_handler(state=promocode_check.get_promocode)
+async def promo_check_handler(message: types.Message, state: FSMContext):
+    promocode = message.text
+    if promocode == "Отмена":
+        await state.finish()
+        await message.answer(
+            f"Ввод промокода отменен",
+            reply_markup=main_menu_user_keyboard
+        )
+        return
+    p_c = db.get_promo(promocode)
+    if not p_c:
+        await message.answer("Такого промокода нет. Попробуйте еще раз.")
+        return
+    async with state.proxy() as data:
+        data['code'] = promocode
+    if p_c['used'] == 0:
+        await promocode_check.complete.set()
+        prom_amount = p_c['amount']
+        await message.answer(
+            f"Вы уверены что хотите применить промокод на {p_c['amount']}?\nДля подтверждения отправьте +"
+        )
+    else:
+        await message.answer(
+            f"Промокод №{promocode} уже использован. Если вы этого не делали, то свяжитесь с администрацией. Контакты указаны в разделе информация.",
+            reply_markup=main_menu_user_keyboard
+        )
+        await state.finish()
+    
+@dp.message_handler(state=promocode_check.complete)
+async def promo_complete_handler(message: types.Message, state: FSMContext):
+    answer = message.text
+    user_id = message.from_user.id
+    
+    if answer == "Отмена":
+        await state.finish()
+        await message.answer(
+            f"Ввод промокода отменен",
+            reply_markup=main_menu_user_keyboard
+        )
+        return
+
+    if answer == "+":
+        async with state.proxy() as data:
+            promo = db.get_promo(data['code'])
+            db.change_user_rub_balance(user_id, promo['amount'])
+            sum = promo['amount']
+            await message.answer(
+                f"Вам на баланс было начислено {sum}. Желаем приятной игры!",
+                reply_markup=main_menu_user_keyboard
+            )
+            db.make_promo_used(data['code'])
+            await state.finish()
+    else:
+        await state.finish()
+        await message.answer(
+            f"Ввод промокода отменен",
+            reply_markup=main_menu_user_keyboard
+        )
+        return
     
 
 
-# TODO: добавить хандлер для промокодов
 # TODO: добавить хандлер для вывода средств
 
 @dp.callback_query_handler(deposit_callback.filter(type="qiwi"))
