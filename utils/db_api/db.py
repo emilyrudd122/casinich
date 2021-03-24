@@ -151,7 +151,7 @@ def set_sum_payment(telegram_id, sum):
     return 1
 
 def check_old_payments(telegram_id):
-    # if there is waiting payment returns 1 if not returns 0
+    """ if there is waiting payment returns 1 if not returns 0"""
     t_id = (telegram_id, )
     cursor.execute("select * from payments where telegram_id = ? and status = 'waiting'", t_id)
     user_payment = cursor.fetchone()

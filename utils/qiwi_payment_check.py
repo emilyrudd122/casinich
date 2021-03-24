@@ -12,13 +12,14 @@ api = SimpleQIWI.QApi(token=token, phone=phone)
 
 def check_payment(code):
     # checks payments with code and returns amount of donated money
+    print("start check")
     api.start()    
     # if api.check(code):
     #     api.stop()
     #     return 1
     # api.stop()
     paym = api.payments
-    print("start check")
+    
     flag = 0
     for p in paym['data']:
         # print(p['comment'])
@@ -28,6 +29,7 @@ def check_payment(code):
             api.stop()
             return amount
     api.stop()
+    print("end check")
     return 0
     
     

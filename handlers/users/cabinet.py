@@ -188,8 +188,11 @@ async def qiwi_deposit_check_handler(call: types.CallbackQuery):
     user_id = call.from_user.id
     code = db.check_old_payments(user_id)
     if not code:
-        #TODO: отправить что у пользователя неt платежа(error)
-        pass
+        #DONE: отправить что у пользователя неt платежа(error)
+        # не уверен что это когда нибудь может сработать, но  всё же
+        await call.message.delete()
+        await call.message.answer("Что - то пошло не так. Попробуйте еще раз.")
+        return
     
     amount = check_payment(code)
     # TODO: подумать как вынести эту клавиатуру в отдельный файл(мб использовать middlewares куда будет подгружаться инстанс юзера и соотв оттуда брать код для ссылки)
