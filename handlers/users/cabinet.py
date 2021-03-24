@@ -231,9 +231,16 @@ async def qiwi_deposit_check_handler(call: types.CallbackQuery):
             'Платеж получен! Баланс пополнен на ' + int(amount),
         )
 
-# TODO: make cancel button work
+# DONE: make cancel button work
 @dp.callback_query_handler(deposit_callback.filter(type="cancel"))
 async def qiwi_deposit_cancel_handler(call:types.CallbackQuery):
     await call.answer(cache_time=10)
+    
+    
+    
+    await call.message.delete()
+    await call.message.answer(
+        "Платеж отменен."
+    )
     
     
