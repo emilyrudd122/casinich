@@ -19,7 +19,7 @@ from loader import dp, bot
 # TODO: подшлифовать все надписи в отправляемых сообщениях
 
 async def game_win_check(game_id):
-    print("work")
+    # print("work")
     game_obj = db.get_game(game_id)
     host = game_obj['host_sum']
     player = game_obj['player_sum']
@@ -75,16 +75,22 @@ async def game_win_check(game_id):
             "Вы проиграли. -%s рублей" % game_obj['bet_amount']
         )
     if host < 22 and player > 22:
+        db.set_game_winner(game_id, "host")
         await host_win()
     elif host > 22 and player < 22:
+        db.set_game_winner(game_id, "player")
         await player_win()
     elif host > 22 and player > 22:
+        db.set_game_winner(game_id, "lost")
         await both_lost()
     elif host == player:
+        db.set_game_winner(game_id, "draw")
         await draw()
     elif (host < 22 and player < 22) and host < player:
+        db.set_game_winner(game_id, "player")
         await player_win()
     elif (host < 22 and player < 22) and host > player:
+        db.set_game_winner(game_id, "host")
         await host_win()
     
 
@@ -106,7 +112,8 @@ cards_value = {
 clear_keyboard = types.ReplyKeyboardRemove(selective=False)
 # TODO: сделать отображение игр, где соперник еще не закончил набор карт.
 # TODO: сделать отображение игр, которые созданы хостом. сделать возможность их отмены
-# TODO: сделать проверку, чтобы сумма игры была числом
+# TODO: сделать кнопку обновить работающей
+# DONE: сделать проверку, чтобы сумма игры была числом
 @dp.message_handler(lambda message: message.text.lower() == "игры")
 async def cabinet_handler(message: types.Message):
     user_id = message.from_user.id
@@ -127,9 +134,11 @@ async def cabinet_handler(message: types.Message):
 
 
     k1 = InlineKeyboardButton('Создать игру[Рубли]', callback_data=games_callback.new(type="create_rubles"))
-    k2 = InlineKeyboardButton('Создать игру[Баллы]', callback_data=games_callback.new(type="create_points"))      
+    k2 = InlineKeyboardButton('Создать игру[Баллы]', callback_data=games_callback.new(type="create_points"))
+    k3 = InlineKeyboardButton('Ваши игры', callback_data=games_callback.new(type="user_games"))
+    k4 = InlineKeyboardButton('Текущие игры', callback_data=games_callback.new(type="user_playing_games"))
     games_keyboard.add(k1, k2)
-
+    games_keyboard.add(k3, k4)
     # games_keyboard = InlineKeyboardMarkup(
     #     inline_keyboard=[
     #         [
@@ -291,7 +300,7 @@ async def stop_take_cards_handler(call: types.CallbackQuery, callback_data: dict
         k1 = InlineKeyboardButton('Взять еще карту', callback_data=games_play_callback.new(type="plus_card", number=game_obj['id']))
         k2 = InlineKeyboardButton('Хватит, вскрываемся', callback_data=games_play_callback.new(type="stop_card", number=game_obj['id']))
         game_keyboard.add(k1, k2)
-        
+        db.make_player_done(game_id)
         await bot.send_message(
             game_obj['telegram_id_host'],
             f"Количество карт: {game_obj['host_cards']}\nКоличество очков: {game_obj['host_sum']}",
@@ -300,6 +309,7 @@ async def stop_take_cards_handler(call: types.CallbackQuery, callback_data: dict
         await call.message.answer("Ожидайте второго игрока.")
     
     else:
+        db.make_host_done(game_id)
         await game_win_check(game_id)
         return
                   
@@ -318,7 +328,12 @@ async def game_create_rubles_handler(call: types.CallbackQuery):
     
 @dp.message_handler(state=create_game.get_sum)
 async def get_rubles_game_bet_amount_handler(message: types.Message, state:FSMContext):
-    bet_amount = int(message.text)
+    bet_amount = ""
+    try:
+        bet_amount = int(message.text)
+    except:
+        await message.answer("Ставка должна быть числом, попробуйте еще раз")
+        return
     await create_game.complete_creation.set()
     async with state.proxy() as data:
         data['bet_amount'] = bet_amount

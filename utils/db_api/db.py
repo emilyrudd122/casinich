@@ -22,7 +22,9 @@ cursor = connection.cursor()
 #     if(connection):
 #         connection.close()
 #         print("connection closed")
-    
+
+
+# TODO: отсортировать все функции в классы(user, koloda, games и тд) чтобы это было более юзабельно
 # TODO: сделать связь, чтобы в user содержались payments этого user'a
 def check_user_exists(telegram_id):
     # return user object if user exists, return 0 if not
@@ -283,6 +285,30 @@ def add_card_player(game_id):
     connection.commit()
     return 1
 
+def make_player_done(game_id):
+    sql = "update games set player_done=1 where id=?"
+    sql_dannie = (game_id, )
+    try:
+        cursor.execute(sql, sql_dannie)
+    except sqlite3.Error as error:
+        print(error)
+        return 0
+        
+    connection.commit()
+    return 1 
+
+def make_host_done(game_id):
+    sql = "update games set host_done=1 where id=?"
+    sql_dannie = (game_id, )
+    try:
+        cursor.execute(sql, sql_dannie)
+    except sqlite3.Error as error:
+        print(error)
+        return 0
+        
+    connection.commit()
+    return 1 
+
 def add_sum_host(game_id, sum):
     sql = "update games set host_sum = host_sum + ? where id=?"
     sql_dannie = (sum, game_id)
@@ -300,6 +326,18 @@ def add_sum_player(game_id, sum):
     sql = "update games set player_sum = player_sum + ? where id=?"
     sql_dannie = (sum, game_id)
     
+    try:
+        cursor.execute(sql, sql_dannie)
+    except sqlite3.Error as error:
+        print(error)
+        return 0
+        
+    connection.commit()
+    return 1
+
+def set_game_winner(game_id, winner):
+    sql_dannie = (winner, game_id)
+    sql = "update games set winner = ? where id = ?"
     try:
         cursor.execute(sql, sql_dannie)
     except sqlite3.Error as error:
